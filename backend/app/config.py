@@ -53,6 +53,13 @@ class Settings(BaseSettings):
         "instagram_basic,instagram_content_publish,"
         "pages_show_list,pages_read_engagement"
     )
+    # Scheduling worker (Phase 5). Run the worker as a separate process
+    # (`python -m app.worker`) in production; set ENABLE_SCHEDULER=true
+    # only for single-process local dev, otherwise two workers can race
+    # (claim locking still prevents duplicate publishes, see scheduler.py).
+    enable_scheduler: bool = False
+    scheduler_interval_seconds: int = 60
+    max_publish_attempts: int = 3
 
 
 settings = Settings()

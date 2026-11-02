@@ -18,7 +18,7 @@ const NAV: [string, string][] = [
   ["Dashboard", "/"], ["Instagram Accounts", "/accounts"],
   ["Google Drive Integration", "/drive"], ["Account-Folder Mapping", "/mappings"],
   ["Video Library", "/videos"], ["Bulk Upload / Video Detection", "/videos"],
-  ["Reel Scheduler", "#"], ["Publishing Calendar", "#"],
+  ["Reel Scheduler", "/scheduler"], ["Publishing Calendar", "/scheduler"],
   ["Publishing History", "#"], ["Failed Jobs", "#"], ["Account Health", "#"],
   ["Daily Reports", "#"], ["Notifications", "#"], ["Settings", "#"],
   ["System Logs", "#"],

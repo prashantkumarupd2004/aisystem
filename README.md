@@ -4,18 +4,19 @@ Centralised web platform to manage ~50 Instagram Professional accounts
 from one dashboard, with one central Google Drive library, strict
 account→folder isolation, scheduling and official Meta API publishing.
 
-> **Phase 4 status: Video detection + library, working.** Phases 1-3
-> are done, plus real Drive folder scanning per mapped account:
-> MP4/MOV validation (size ≤250 MB, duration 3–900 s, sane aspect
-> ratio; missing duration stays NEW, never READY), dedup by Drive
-> file ID and md5 hash, rename updates, vanished files marked
-> NEEDS_REVIEW (never deleted), cross-account files never reassigned,
-> caption/hashtag editing, and Drive thumbnails as previews.
-> Codec is NOT claimed as validated from Drive metadata (Drive does
-> not expose it) — it is validated after download in Phase 6.
-> Full authenticated video playback needs the Phase 6 media endpoint
-> and is not faked here. Scheduling/worker (Phase 5) and Meta
-> publishing (Phase 6) are **not present yet — and are not faked**.
+> **Phase 5 status: Scheduling + persistent worker, working.** Phases
+> 1-4 are done, plus a real scheduling engine: UTC storage with
+> IANA timezone input/display, per-account schedules, bulk scheduling
+> (all-or-nothing), calendar grouping, edit/cancel/pause/resume,
+> daily quota postponement (not failure), and an APScheduler worker
+> (`python -m app.worker`) that survives restarts because jobs live
+> in the DB. Claim locking (conditional UPDATE) + SUCCESS-attempt
+> check prevent duplicate publishing, and failed publishes retry
+> with backoff up to 3 attempts. Recurrence (daily/weekly/monthly)
+> re-publishes the same video by explicit opt-in. Meta publishing
+> (Phase 6) is **not present yet — and is not faked**: with no
+> publisher wired, the worker skips due jobs instead of marking
+> them published.
 
 ## Non-negotiable rule
 
