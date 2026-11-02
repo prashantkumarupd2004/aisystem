@@ -329,6 +329,15 @@ def process_due_posts(
             post.status = "PUBLISHED"
             if video is not None:
                 video.status = "PUBLISHED"
+            # Health: record last successful publishing time (Phase 8).
+            health = db.query(AccountHealth).filter(
+                AccountHealth.instagram_account_id == post.instagram_account_id
+            ).first()
+            if health is None:
+                health = AccountHealth(instagram_account_id=post.instagram_account_id)
+                db.add(health)
+            health.last_published_at = now
+            health.status = "ACTIVE"
             _log(db, post, "Published", f"Instagram Media ID: {media_id}")
             summary["published"] += 1
             # Recurrence: create the next occurrence of this same video.

@@ -4,17 +4,18 @@ Centralised web platform to manage ~50 Instagram Professional accounts
 from one dashboard, with one central Google Drive library, strict
 account→folder isolation, scheduling and official Meta API publishing.
 
-> **Phase 7 status: Retry engine + duplicate protection, working.**
-> Phases 1-6 are done, plus formal error classification (TEMPORARY /
-> RATE_LIMIT / QUOTA / PERMANENT / TOKEN_EXPIRED / PERMISSION_REVOKED
-> / UNCERTAIN), Retry-After-aware backoff, dead-letter queue with
-> admin notifications, account health flips on token/permission
-> failures, and manual reconciliation for UNCERTAIN jobs (check
-> Instagram before any retry) plus manual retry. A job that flips
-> an account to TOKEN_EXPIRED no longer fails that account's other
-> jobs in the same tick -- they stay SCHEDULED for after a
-> reconnect. See docs/ERROR_HANDLING.md. Live publishing still
-> needs the external Meta/Drive/HTTPS setup from Phase 6.
+> **Phase 8 status: Monitoring + reports + alerts, working.**
+> Phases 1-7 are done, plus a health dashboard (connected / API
+> accessible / disconnected / expired / revoked / needing
+> reconnection / needing manual review, per-account last API check
+> and last successful publishing time -- API accessible is never
+> claimed as "not suspended"), daily/weekly/monthly range reports
+> with per-account breakdown, published history with exact time
+> and Instagram Media ID, failed history with retry history, CSV
+> export, and optional email/Telegram alerts that honestly report
+> "not configured" when unset. See docs/MONITORING_REPORTS.md.
+> Live publishing still needs the external Meta/Drive/HTTPS setup
+> from Phase 6.
 
 ## Non-negotiable rule
 

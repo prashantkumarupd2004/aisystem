@@ -19,8 +19,8 @@ const NAV: [string, string][] = [
   ["Google Drive Integration", "/drive"], ["Account-Folder Mapping", "/mappings"],
   ["Video Library", "/videos"], ["Bulk Upload / Video Detection", "/videos"],
   ["Reel Scheduler", "/scheduler"], ["Publishing Calendar", "/scheduler"],
-  ["Publishing History", "/history"], ["Failed Jobs", "/failed"], ["Account Health", "#"],
-  ["Daily Reports", "#"], ["Notifications", "#"], ["Settings", "#"],
+  ["Publishing History", "/history"], ["Failed Jobs", "/failed"], ["Account Health", "/health"],
+  ["Daily Reports", "/reports"], ["Notifications", "/notifications"], ["Settings", "#"],
   ["System Logs", "#"],
 ];
 

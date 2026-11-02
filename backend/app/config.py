@@ -67,6 +67,16 @@ class Settings(BaseSettings):
     media_url_expiry_minutes: int = 120
     media_poll_interval_seconds: int = 5
     media_poll_max_attempts: int = 120
+    # Optional alerts (Phase 8). If these are empty, alerts are NOT
+    # sent and the test endpoint honestly reports "not configured".
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_user: str | None = None
+    smtp_password: str | None = None
+    smtp_from: str | None = None
+    alert_email_to: str | None = None
+    telegram_bot_token: str | None = None
+    telegram_chat_id: str | None = None
 
 
 settings = Settings()
