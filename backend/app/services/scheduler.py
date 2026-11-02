@@ -235,7 +235,13 @@ def process_due_posts(
             PublishingAttempt.scheduled_post_id == post.id
         ).count() + 1
         try:
-            success, media_id, error = publish_fn(post)
+            # Real publisher takes (db, post); test fakes take (post).
+            import inspect as _inspect
+
+            if len(_inspect.signature(publish_fn).parameters) >= 2:
+                success, media_id, error = publish_fn(db, post)
+            else:
+                success, media_id, error = publish_fn(post)
         except Exception as exc:  # publisher raised: treat as temporary
             success, media_id, error = False, None, str(exc)
         attempt = PublishingAttempt(
@@ -269,7 +275,17 @@ def process_due_posts(
                 _log(db, post, "Recurring next occurrence created",
                      f"Next: {nxt.isoformat()}")
         else:
-            if attempt_number < MAX_ATTEMPTS:
+            # PERMANENT and UNCERTAIN failures are never auto-retried:
+            # permanent cannot succeed on retry, uncertain may already
+            # be live on Instagram and retrying could duplicate it.
+            if error and (error.startswith("PERMANENT:") or error.startswith("UNCERTAIN:")):
+                post.status = "FAILED"
+                if video is not None:
+                    video.status = "READY"
+                _log(db, post, "Publish failed, no auto-retry",
+                     f"Attempt {attempt_number}: {error}")
+                summary["failed"] += 1
+            elif attempt_number < MAX_ATTEMPTS:
                 backoff_minutes = 15 * (2 ** (attempt_number - 1))
                 post.scheduled_at_utc = now + timedelta(minutes=backoff_minutes)
                 post.status = "SCHEDULED"

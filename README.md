@@ -4,19 +4,19 @@ Centralised web platform to manage ~50 Instagram Professional accounts
 from one dashboard, with one central Google Drive library, strict
 account→folder isolation, scheduling and official Meta API publishing.
 
-> **Phase 5 status: Scheduling + persistent worker, working.** Phases
-> 1-4 are done, plus a real scheduling engine: UTC storage with
-> IANA timezone input/display, per-account schedules, bulk scheduling
-> (all-or-nothing), calendar grouping, edit/cancel/pause/resume,
-> daily quota postponement (not failure), and an APScheduler worker
-> (`python -m app.worker`) that survives restarts because jobs live
-> in the DB. Claim locking (conditional UPDATE) + SUCCESS-attempt
-> check prevent duplicate publishing, and failed publishes retry
-> with backoff up to 3 attempts. Recurrence (daily/weekly/monthly)
-> re-publishes the same video by explicit opt-in. Meta publishing
-> (Phase 6) is **not present yet — and is not faked**: with no
-> publisher wired, the worker skips due jobs instead of marking
-> them published.
+> **Phase 6 status: Meta Reels publishing, working (mock-tested).**
+> Phases 1-5 are done, plus the real publishing path: Drive download
+> server-side, ffprobe codec check when available, short-lived signed
+> media URL with Range/HEAD support for Meta's fetch, container
+> creation (`media_type=REELS`), polling until FINISHED, then
+> `media_publish` returning the Instagram Media ID, temp-file cleanup,
+> and error classification — PERMANENT and UNCERTAIN failures are
+> never auto-retried (uncertain = check Instagram first, do not
+> blindly re-post). The worker (`python -m app.worker`) now uses
+> this publisher. Live publishing still needs: a connected Meta
+> account with `instagram_content_publish`, a connected Drive, and a
+> stable public HTTPS media URL (see docs/PUBLISHING.md) — those are
+> external setup, not code, and are not faked here.
 
 ## Non-negotiable rule
 

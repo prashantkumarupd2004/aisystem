@@ -60,6 +60,13 @@ class Settings(BaseSettings):
     enable_scheduler: bool = False
     scheduler_interval_seconds: int = 60
     max_publish_attempts: int = 3
+    # Temporary media delivery (Phase 6/9). PUBLIC_MEDIA_BASE_URL must
+    # end with /media and be publicly reachable over HTTPS in
+    # production (Cloudflare Tunnel is for local testing only).
+    media_temp_dir: str = str(BACKEND_DIR / "data" / "media_temp")
+    media_url_expiry_minutes: int = 120
+    media_poll_interval_seconds: int = 5
+    media_poll_max_attempts: int = 120
 
 
 settings = Settings()

@@ -17,6 +17,7 @@ import logging
 import time
 
 from .database import Base, engine, ensure_extra_columns
+from .services.publishing import publish_reel
 from .services.scheduler import start_scheduler
 
 logging.basicConfig(level=logging.INFO)
@@ -26,9 +27,9 @@ log = logging.getLogger(__name__)
 def main():
     Base.metadata.create_all(bind=engine)
     ensure_extra_columns()
-    scheduler = start_scheduler(publish_fn=None)
+    scheduler = start_scheduler(publish_fn=publish_reel)
     scheduler.start()
-    log.info("Worker started (no publisher wired yet -- Phase 6). Press Ctrl+C to stop.")
+    log.info("Worker started with Meta Reels publisher. Press Ctrl+C to stop.")
     try:
         while True:
             time.sleep(3600)

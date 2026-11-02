@@ -25,6 +25,8 @@ from ..models import (
     AccountFolderMapping,
     DriveVideo,
     InstagramAccount,
+    PublishingAttempt,
+    PublishingLog,
     ScheduledPost,
     User,
 )
@@ -229,6 +231,42 @@ def next_eligible(
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
     return {"next_eligible_utc": next_eligible_time(db, account_id, dt.astimezone(timezone.utc))}
+
+
+@router.get("/{schedule_id}/attempts")
+def schedule_attempts(
+    schedule_id: int, db: Session = Depends(get_db), _=Depends(get_current_user)
+):
+    post = db.get(ScheduledPost, schedule_id)
+    if not post:
+        raise HTTPException(404, "Schedule not found")
+    return [
+        {
+            "id": a.id, "attempt_number": a.attempt_number, "status": a.status,
+            "error_code": a.error_code, "error_detail": a.error_detail,
+            "instagram_media_id": a.instagram_media_id,
+            "created_at": a.created_at,
+        }
+        for a in db.query(PublishingAttempt).filter(
+            PublishingAttempt.scheduled_post_id == schedule_id
+        ).order_by(PublishingAttempt.attempt_number).all()
+    ]
+
+
+@router.get("/{schedule_id}/logs")
+def schedule_logs(
+    schedule_id: int, db: Session = Depends(get_db), _=Depends(get_current_user)
+):
+    post = db.get(ScheduledPost, schedule_id)
+    if not post:
+        raise HTTPException(404, "Schedule not found")
+    return [
+        {"id": l.id, "level": l.level, "message": l.message,
+         "details": l.details, "created_at": l.created_at}
+        for l in db.query(PublishingLog).filter(
+            PublishingLog.scheduled_post_id == schedule_id
+        ).order_by(PublishingLog.created_at).all()
+    ]
 
 
 @router.patch("/{schedule_id}", response_model=ScheduleOut)
