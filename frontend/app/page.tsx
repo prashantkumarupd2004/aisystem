@@ -14,12 +14,14 @@ import {
 import Link from "next/link";
 import { api, type AccountSummary, type DashboardStats } from "@/lib/api";
 
-const NAV = [
-  "Dashboard", "Instagram Accounts", "Google Drive Integration",
-  "Account-Folder Mapping", "Video Library", "Bulk Upload / Video Detection",
-  "Reel Scheduler", "Publishing Calendar", "Publishing History",
-  "Failed Jobs", "Account Health", "Daily Reports", "Notifications",
-  "Settings", "System Logs",
+const NAV: [string, string][] = [
+  ["Dashboard", "/"], ["Instagram Accounts", "/accounts"],
+  ["Google Drive Integration", "/drive"], ["Account-Folder Mapping", "/mappings"],
+  ["Video Library", "#"], ["Bulk Upload / Video Detection", "#"],
+  ["Reel Scheduler", "#"], ["Publishing Calendar", "#"],
+  ["Publishing History", "#"], ["Failed Jobs", "#"], ["Account Health", "#"],
+  ["Daily Reports", "#"], ["Notifications", "#"], ["Settings", "#"],
+  ["System Logs", "#"],
 ];
 
 export default function Dashboard() {
@@ -58,8 +60,8 @@ export default function Dashboard() {
         <p className="flex items-center gap-2 text-lg font-bold"><Instagram /> Reels Automation</p>
         <p className="mt-1 text-xs text-slate-400">Phase 1 — real backend data</p>
         <nav className="mt-6 space-y-1">
-          {NAV.map((item, i) => (
-            <Link key={item} href={i === 0 ? "/" : i === 1 ? "/accounts" : "#"}
+          {NAV.map(([item, href], i) => (
+            <Link key={item} href={href}
               className={`block rounded px-3 py-2 text-sm ${i === 0 ? "bg-slate-700" : "text-slate-300 hover:bg-slate-800"}`}>
               {item}
             </Link>

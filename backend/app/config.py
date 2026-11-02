@@ -34,6 +34,14 @@ class Settings(BaseSettings):
     admin_email: str | None = None
     admin_password: str | None = None
     cors_origins: str = "http://localhost:3000"
+    frontend_url: str = "http://localhost:3000"
+    # Google Drive OAuth (Phase 2). Values come from a Google Cloud
+    # project; see docs/GOOGLE_DRIVE_SETUP.md. drive.readonly is enough
+    # to list folders and download videos for Meta publishing.
+    google_client_id: str | None = None
+    google_client_secret: str | None = None
+    google_redirect_uri: str = "http://localhost:8000/api/drive/oauth/callback"
+    google_drive_scopes: str = "https://www.googleapis.com/auth/drive.readonly"
 
 
 settings = Settings()
