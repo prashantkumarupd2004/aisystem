@@ -68,12 +68,18 @@ def _classify_graph_error(exc: httpx.HTTPStatusError) -> tuple[bool, str]:
         message = err.get("message", str(exc))
     except Exception:
         code, message = None, str(exc)
+    retry_after = None
+    try:
+        retry_after = exc.response.headers.get("retry-after")
+    except Exception:
+        retry_after = None
     if code == 190:
         return True, f"PERMANENT: Meta token expired/invalid: {message}"
     if code in (200, 10):
         return True, f"PERMANENT: Meta permission revoked/missing: {message}"
     if code in TEMPORARY_GRAPH_CODES:
-        return False, f"Meta rate limit/transient error (code {code}): {message}"
+        suffix = f" retry_after={retry_after}" if retry_after else ""
+        return False, f"Meta rate limit/transient error (code {code}): {message}{suffix}"
     if exc.response.status_code and exc.response.status_code >= 500:
         return False, f"Meta server error: {message}"
     return False, f"Meta API error (code {code}): {message}"

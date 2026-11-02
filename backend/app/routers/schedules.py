@@ -269,6 +269,51 @@ def schedule_logs(
     ]
 
 
+@router.post("/{schedule_id}/reconcile")
+def reconcile_schedule(
+    schedule_id: int,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """Manual reconciliation for an UNCERTAIN / FAILED job. Only for
+    FAILED jobs; never publishes anything itself."""
+    from ..services import reconcile as reconcile_service
+
+    post = db.get(ScheduledPost, schedule_id)
+    if not post:
+        raise HTTPException(404, "Schedule not found")
+    if post.status != "FAILED":
+        raise HTTPException(400, "Only FAILED schedules can be reconciled")
+    return reconcile_service.reconcile_uncertain(db, post)
+
+
+@router.post("/{schedule_id}/retry", response_model=ScheduleOut)
+def retry_schedule(
+    schedule_id: int,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """Manual retry of a FAILED job, by an admin, after fixing the
+    cause (token, permission, caption, etc.). This is deliberate, not
+    automatic -- in particular, retry an UNCERTAIN job only after
+    reconciliation has confirmed it is not already live."""
+    from datetime import datetime, timezone
+
+    post = db.get(ScheduledPost, schedule_id)
+    if not post:
+        raise HTTPException(404, "Schedule not found")
+    if post.status != "FAILED":
+        raise HTTPException(400, "Only FAILED schedules can be retried")
+    post.status = "SCHEDULED"
+    post.scheduled_at_utc = datetime.now(timezone.utc)
+    video = db.get(DriveVideo, post.drive_video_id)
+    if video and video.status == "READY":
+        video.status = "SCHEDULED"
+    db.commit()
+    db.refresh(post)
+    return _out(post, None)
+
+
 @router.patch("/{schedule_id}", response_model=ScheduleOut)
 def edit_schedule(
     schedule_id: int,

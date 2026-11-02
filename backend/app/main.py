@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .config import cors_origin_list, settings
 from .database import Base, SessionLocal, engine, ensure_extra_columns
 from .models import User  # noqa: F401  (register all models)
-from .routers import accounts, auth, dashboard, drive, instagram, mappings, media, schedules, videos
+from .routers import accounts, auth, dashboard, drive, failed_jobs, instagram, mappings, media, notifications, schedules, videos
 from .security import hash_password
 
 log = logging.getLogger(__name__)
@@ -59,6 +59,8 @@ app.include_router(instagram.router)
 app.include_router(videos.router)
 app.include_router(schedules.router)
 app.include_router(media.router)
+app.include_router(notifications.router)
+app.include_router(failed_jobs.router)
 
 
 @app.get("/api/health")

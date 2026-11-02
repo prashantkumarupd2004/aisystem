@@ -53,6 +53,11 @@ def _setup(db):
                                access_token_encrypted=encrypt_token("page-token-pub"))
         db.add(acc)
         db.flush()
+    else:
+        # Shared test DB persists across runs; reset status/token.
+        acc.connection_status = "ACTIVE"
+        acc.access_token_encrypted = encrypt_token("page-token-pub")
+        db.commit()
     folder = db.query(DriveFolder).filter_by(drive_folder_id="drive-folder-p6").first()
     if folder is None:
         folder = DriveFolder(drive_folder_id="drive-folder-p6", name="pub_folder")
@@ -175,10 +180,37 @@ def test_media_endpoint_range_and_head():
 
 def test_scheduler_never_retries_permanent_or_uncertain():
     db = SessionLocal()
-    acc, folder = _setup(db)
-    post, video = _post(db, acc, folder, "p6-file-3")
-    # Shared test DB may contain other due posts from earlier tests, so
-    # count calls for THIS post only, not total publisher calls.
+    # Use a dedicated account for this test: the shared DB contains
+    # leftover due posts for pub_acct from earlier tests, and a
+    # permanent failure for one of them would flip pub_acct to
+    # TOKEN_EXPIRED before this post is reached (correct behaviour,
+    # wrong test setup). A fresh account avoids that interference.
+    acc = db.query(InstagramAccount).filter_by(username="perm_acct").first()
+    if acc is None:
+        acc = InstagramAccount(instagram_user_id="17890333", username="perm_acct",
+                               account_type="BUSINESS", connection_status="ACTIVE",
+                               access_token_encrypted=encrypt_token("page-token-perm"))
+        db.add(acc)
+        db.flush()
+    else:
+        acc.connection_status = "ACTIVE"
+        acc.access_token_encrypted = encrypt_token("page-token-perm")
+        db.commit()
+    folder = db.query(DriveFolder).filter_by(drive_folder_id="drive-folder-perm").first()
+    if folder is None:
+        folder = DriveFolder(drive_folder_id="drive-folder-perm", name="perm_folder")
+        db.add(folder)
+        db.flush()
+    mapping = db.query(AccountFolderMapping).filter_by(instagram_account_id=acc.id).first()
+    if mapping is None:
+        mapping = AccountFolderMapping(instagram_account_id=acc.id, drive_folder_id=folder.id, confirmed_by_admin=True)
+        db.add(mapping)
+        db.commit()
+    else:
+        mapping.drive_folder_id = folder.id
+        mapping.is_active = True
+        db.commit()
+    post, video = _post(db, acc, folder, "p6-file-perm")
     called_ids = []
     post_id = post.id
 

@@ -4,19 +4,17 @@ Centralised web platform to manage ~50 Instagram Professional accounts
 from one dashboard, with one central Google Drive library, strict
 account→folder isolation, scheduling and official Meta API publishing.
 
-> **Phase 6 status: Meta Reels publishing, working (mock-tested).**
-> Phases 1-5 are done, plus the real publishing path: Drive download
-> server-side, ffprobe codec check when available, short-lived signed
-> media URL with Range/HEAD support for Meta's fetch, container
-> creation (`media_type=REELS`), polling until FINISHED, then
-> `media_publish` returning the Instagram Media ID, temp-file cleanup,
-> and error classification — PERMANENT and UNCERTAIN failures are
-> never auto-retried (uncertain = check Instagram first, do not
-> blindly re-post). The worker (`python -m app.worker`) now uses
-> this publisher. Live publishing still needs: a connected Meta
-> account with `instagram_content_publish`, a connected Drive, and a
-> stable public HTTPS media URL (see docs/PUBLISHING.md) — those are
-> external setup, not code, and are not faked here.
+> **Phase 7 status: Retry engine + duplicate protection, working.**
+> Phases 1-6 are done, plus formal error classification (TEMPORARY /
+> RATE_LIMIT / QUOTA / PERMANENT / TOKEN_EXPIRED / PERMISSION_REVOKED
+> / UNCERTAIN), Retry-After-aware backoff, dead-letter queue with
+> admin notifications, account health flips on token/permission
+> failures, and manual reconciliation for UNCERTAIN jobs (check
+> Instagram before any retry) plus manual retry. A job that flips
+> an account to TOKEN_EXPIRED no longer fails that account's other
+> jobs in the same tick -- they stay SCHEDULED for after a
+> reconnect. See docs/ERROR_HANDLING.md. Live publishing still
+> needs the external Meta/Drive/HTTPS setup from Phase 6.
 
 ## Non-negotiable rule
 

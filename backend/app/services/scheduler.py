@@ -39,10 +39,23 @@ from sqlalchemy.orm import Session
 
 from ..config import settings
 from ..models import (
+    AccountHealth,
     DriveVideo,
+    InstagramAccount,
+    Notification,
     PublishingAttempt,
     PublishingLog,
     ScheduledPost,
+)
+from .errors import (
+    NO_RETRY_KINDS,
+    PERMISSION_REVOKED,
+    QUOTA,
+    RATE_LIMIT,
+    TEMPORARY,
+    TOKEN_EXPIRED,
+    classify_error,
+    next_retry_delay,
 )
 from .mapping import MappingMismatch, NotPublishable, validate_publish_eligibility
 
@@ -127,6 +140,43 @@ def next_recurrence(scheduled_utc: datetime, rule: str | None) -> datetime | Non
     return None
 
 
+def _notify(db: Session, post: ScheduledPost, kind: str, error: str | None):
+    """Admin notification for an unresolved / dead-letter failure."""
+    titles = {
+        TOKEN_EXPIRED: "Instagram token expired -- reconnect required",
+        PERMISSION_REVOKED: "Instagram permission revoked -- reconnect required",
+        "dead_letter": "Reel publishing failed permanently (dead-letter)",
+    }
+    db.add(
+        Notification(
+            instagram_account_id=post.instagram_account_id,
+            kind=kind.lower(),
+            title=titles.get(kind, f"Reel publishing failed ({kind})"),
+            body=f"Scheduled post #{post.id} failed: {error or 'unknown error'}. "
+                 f"Check Failed Jobs; do not blindly retry UNCERTAIN jobs.",
+        )
+    )
+
+
+def _update_health_for_error(db: Session, post: ScheduledPost, kind: str, error: str | None):
+    """Flip account health for token/permission failures so the
+    dashboard shows the account needs attention, not just the job."""
+    if kind not in (TOKEN_EXPIRED, PERMISSION_REVOKED):
+        return
+    account = db.get(InstagramAccount, post.instagram_account_id)
+    if account is None:
+        return
+    account.connection_status = kind
+    health = db.query(AccountHealth).filter(
+        AccountHealth.instagram_account_id == account.id
+    ).first()
+    if health is None:
+        health = AccountHealth(instagram_account_id=account.id)
+        db.add(health)
+    health.status = kind
+    health.detail = error
+
+
 def _log(db: Session, post: ScheduledPost, message: str, details: str | None = None):
     db.add(
         PublishingLog(
@@ -166,9 +216,17 @@ def process_due_posts(
     summary = {
         "due": len(due), "published": 0, "failed": 0,
         "postponed_quota": 0, "skipped_no_publisher": 0,
-        "skipped_already_published": 0,
+        "skipped_already_published": 0, "skipped_account_issue": 0,
     }
+    # Accounts that became unusable during this tick (token expired /
+    # permission revoked): remaining jobs for those accounts are left
+    # SCHEDULED, not failed, so they can run after a reconnect without
+    # an admin having to manually retry every single job.
+    bad_accounts: set[int] = set()
     for post in due:
+        if post.instagram_account_id in bad_accounts:
+            summary["skipped_account_issue"] += 1
+            continue
         # Quota postponement happens before claiming, so a postponed
         # job is not lost and not counted as a failure.
         if published_today_count(db, post.instagram_account_id, now) >= settings.max_reels_per_account_per_day:
@@ -224,6 +282,20 @@ def process_due_posts(
                 db.commit()
                 summary["postponed_quota"] += 1
                 continue
+            kind, _ = classify_error(str(exc))
+            if kind in (TOKEN_EXPIRED, PERMISSION_REVOKED):
+                # Account-level problem: leave this job SCHEDULED for
+                # after a reconnect, and skip the account's other jobs
+                # in this tick for the same reason.
+                bad_accounts.add(post.instagram_account_id)
+                post.status = "SCHEDULED"
+                if video is not None:
+                    video.status = "READY"
+                _log(db, post, "Skipped: account needs reconnection",
+                     str(exc))
+                db.commit()
+                summary["skipped_account_issue"] += 1
+                continue
             post.status = "FAILED"
             if video is not None:
                 video.status = "READY"
@@ -275,30 +347,45 @@ def process_due_posts(
                 _log(db, post, "Recurring next occurrence created",
                      f"Next: {nxt.isoformat()}")
         else:
-            # PERMANENT and UNCERTAIN failures are never auto-retried:
-            # permanent cannot succeed on retry, uncertain may already
-            # be live on Instagram and retrying could duplicate it.
-            if error and (error.startswith("PERMANENT:") or error.startswith("UNCERTAIN:")):
+            kind, retry_after = classify_error(error)
+            if kind == QUOTA:
+                post.scheduled_at_utc = post.scheduled_at_utc + timedelta(days=1)
+                post.status = "SCHEDULED"
+                if video is not None:
+                    video.status = "READY"
+                _log(db, post, "Postponed: daily publishing quota reached",
+                     f"Moved to {post.scheduled_at_utc.isoformat()}")
+                summary["postponed_quota"] += 1
+            elif kind in NO_RETRY_KINDS:
+                # PERMANENT / TOKEN_EXPIRED / PERMISSION_REVOKED /
+                # UNCERTAIN: never auto-retry. Uncertain may already
+                # be live; retrying could duplicate it.
                 post.status = "FAILED"
                 if video is not None:
                     video.status = "READY"
                 _log(db, post, "Publish failed, no auto-retry",
-                     f"Attempt {attempt_number}: {error}")
+                     f"Attempt {attempt_number} [{kind}]: {error}")
+                _notify(db, post, kind, error)
+                _update_health_for_error(db, post, kind, error)
+                if kind in (TOKEN_EXPIRED, PERMISSION_REVOKED):
+                    bad_accounts.add(post.instagram_account_id)
                 summary["failed"] += 1
             elif attempt_number < MAX_ATTEMPTS:
-                backoff_minutes = 15 * (2 ** (attempt_number - 1))
-                post.scheduled_at_utc = now + timedelta(minutes=backoff_minutes)
+                delay = next_retry_delay(attempt_number, kind, retry_after)
+                post.scheduled_at_utc = now + delay
                 post.status = "SCHEDULED"
                 if video is not None:
                     video.status = "READY"
                 _log(db, post, "Publish failed, will retry",
-                     f"Attempt {attempt_number}: {error}; retry in {backoff_minutes} min")
+                     f"Attempt {attempt_number} [{kind}]: {error}; retry in {delay}")
             else:
+                # Dead-letter: max attempts exhausted, not silently dropped.
                 post.status = "FAILED"
                 if video is not None:
                     video.status = "READY"
                 _log(db, post, "Publish failed permanently (dead-letter)",
-                     f"Attempt {attempt_number}: {error}")
+                     f"Attempt {attempt_number} [{kind}]: {error}")
+                _notify(db, post, "dead_letter", error)
                 summary["failed"] += 1
         db.commit()
     return summary
