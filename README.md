@@ -1,22 +1,17 @@
-# Multi-Account Instagram Reels Automation Agent — Phase 1
+# Multi-Account Instagram Reels Automation Agent — All 10 Phases Complete
 
 Centralised web platform to manage ~50 Instagram Professional accounts
 from one dashboard, with one central Google Drive library, strict
 account→folder isolation, scheduling and official Meta API publishing.
 
-> **Phase 9 status: Local + hybrid cloud deployment, ready.**
-> Phases 1-8 are done, plus a full Docker Compose stack (Postgres +
-> API + separate worker + frontend, shared media volume), backend
-> Dockerfile with ffmpeg for the codec check, frontend Dockerfile
-> with reproducible `npm ci` and a build-time API URL, Procfile and
-> render.yaml for Railway/Render, systemd units for a Linux VPS,
-> a production env template, and `scripts/deploy_check.py` which
-> blocks deploys with a missing/invalid encryption key, default
-> secret, non-Postgres DB, or non-HTTPS media URL. Docker is not
-> installed on this dev VM, so images were validated by config
-> checks, not a local build -- see docs/DEPLOYMENT.md. Live
-> publishing still needs the external Meta/Drive/HTTPS setup
-> from Phase 6.
+> **Phase 10 status: COMPLETE (all phases built, tested, documented).**
+> 54 backend tests pass, frontend builds, Alembic migrations work
+> (upgrade head creates all 15 tables, downgrade base drops them),
+> security check passes. What is still external, not code, and not
+> faked: GitHub push (no GitHub auth on this machine), Google/Meta
+> OAuth credentials, and a stable public HTTPS media URL. Docker
+> images were validated by config checks only (Docker is not
+> installed on this dev VM) -- build them once on the target host.
 
 ## Non-negotiable rule
 
@@ -28,17 +23,18 @@ account mapped to `XYZ`. Every publish path re-checks
 
 API connectivity is **not** treated as proof an account is unsuspended:
 health status defaults to `UNKNOWN` / `NEEDS_MANUAL_REVIEW` unless an
-authorised API check says otherwise (Phase 8).
+authorised API check says otherwise.
 
 ## Quick start (local)
 
 ```bash
-# Backend (Python 3.11+)
+# Backend (Python 3.12)
 cd backend
-python -m venv .venv && . .venv/bin/activate   # Windows: .venv\Scripts\activate
+python -m venv .venv && . .venv/bin/activate
 pip install -r requirements.txt
 cp ../.env.example .env   # then edit SECRET_KEY, TOKEN_ENCRYPTION_KEY, ADMIN_*
 uvicorn app.main:app --reload --port 8000
+python -m app.worker      # separate terminal: the publishing worker
 
 # Frontend (Node 20+), in another terminal
 cd frontend
@@ -56,67 +52,87 @@ The first admin is created on backend startup **only** from
 `ADMIN_EMAIL` / `ADMIN_PASSWORD` in `.env`. There is no hard-coded
 password. Log in at `/login`.
 
-Or with Docker (SQLite by default; see `docker-compose.yml` for the
-optional PostgreSQL profile):
+Or with Docker (Postgres + API + worker + frontend):
 
 ```bash
+cp .env.production.example .env   # fill in real secrets
 docker compose up --build
 ```
+
+## What was built (phases)
+
+| Phase | What | Key guarantee |
+|---|---|---|
+| 1 | Project, schema (15 tables), auth, dashboard | Tokens encrypted, never returned |
+| 2 | Google Drive OAuth + folder sync | Sync keyed by permanent Drive ID |
+| 3 | Instagram OAuth + multi-account | Only Business/Creator on a Page; upsert by IG id |
+| 4 | Video detection + library | Missing duration -> NEW, never READY; vanished -> NEEDS_REVIEW, never deleted |
+| 5 | Scheduling + persistent worker | UTC + IANA timezones, quota postpones (never fails), claim locking |
+| 6 | Meta Reels publishing + signed media | Container -> poll FINISHED -> publish; temp cleanup; PERMANENT/UNCERTAIN never auto-retried |
+| 7 | Retry + duplicate protection | Classification, Retry-After, dead-letter, reconcile-before-retry |
+| 8 | Monitoring + reports + alerts | Health honesty, daily/range reports, CSV, alerts never faked |
+| 9 | Local + cloud deployment | Docker Compose, Procfile/render.yaml, systemd, deploy_check gate |
+| 10 | Integration tests + security + docs | Alembic migrations, end-to-end chain, security_check script |
 
 ## Project structure
 
 ```
 backend/
-  app/
-    config.py            # env-based settings, no production defaults for secrets
-    security.py          # bcrypt passwords, JWT, Fernet token encryption at rest
-    database.py          # SQLAlchemy engine (SQLite default, PostgreSQL via URL)
-    models.py            # all 15 tables (section 14 of the master prompt)
-    schemas.py           # Pydantic schemas — responses never include tokens
-    deps.py              # JWT auth + admin role guard
-    routers/             # auth, dashboard, accounts, mappings
-    services/mapping.py  # account→folder isolation + 8 pre-publish checks
-  tests/test_phase1.py   # auth, encryption, mapping-mismatch, dashboard, 401
+  app/            # config, security, database, models, schemas, deps
+  app/routers/    # auth, dashboard, accounts, drive, instagram, mappings,
+                  # videos, schedules, media, notifications, failed_jobs,
+                  # health, reports, alerts
+  app/services/   # mapping, drive, instagram, video_detection, scheduler,
+                  # publishing, media_delivery, errors, reconcile,
+                  # health, reports, alerts
+  alembic/        # migrations (initial: all 15 tables)
+  tests/          # test_phase1.py ... test_phase10.py (54 tests)
 frontend/
-  app/                   # Next.js 14 App Router: dashboard, login, accounts
-  lib/api.ts             # typed backend client (NEXT_PUBLIC_API_URL)
-docs/
-  SECURITY.md  DEPLOYMENT.md  TESTING.md
+  app/            # dashboard, login, accounts, drive, mappings, videos,
+                  # scheduler, history, failed, health, reports, notifications
+  lib/api.ts      # typed client (NEXT_PUBLIC_API_URL)
+scripts/          # deploy_check.py, security_check.py
+deploy/           # systemd units
+docs/             # SECURITY, DEPLOYMENT, TESTING, API, ARCHITECTURE,
+                  # GOOGLE_DRIVE_SETUP, META_SETUP, PUBLISHING,
+                  # ERROR_HANDLING, MONITORING_REPORTS
 ```
 
-## API (Phase 1)
+## Docs
 
-| Method | Path | Notes |
-|---|---|---|
-| GET | `/api/health` | public liveness |
-| POST | `/api/auth/login` | OAuth2 password form → JWT |
-| GET | `/api/auth/me` | requires JWT |
-| GET | `/api/dashboard/stats` | real counts |
-| GET | `/api/dashboard/accounts-summary` | per-account counts, no tokens |
-| GET/POST | `/api/accounts` | POST is admin-only; token encrypted, never returned |
-| GET | `/api/accounts/{id}` | |
-| POST | `/api/accounts/{id}/disconnect` | admin-only; clears stored token |
-| GET/POST | `/api/mappings` | POST requires `confirmed_by_admin=true`; rejects a folder already mapped to another account unless `shared_folder_mode=true` |
+- `docs/API.md` -- endpoint list (no token ever in a response)
+- `docs/ARCHITECTURE.md` -- data flow + the 5 non-negotiable invariants
+- `docs/GOOGLE_DRIVE_SETUP.md` / `docs/META_SETUP.md` -- OAuth setup
+- `docs/PUBLISHING.md` / `docs/ERROR_HANDLING.md` /
+  `docs/MONITORING_REPORTS.md` -- publishing, retry, reports
+- `docs/DEPLOYMENT.md` -- bare metal, Docker, hybrid cloud, backups
+- `docs/SECURITY.md` / `docs/TESTING.md` -- controls, limits, checklist
 
 ## Tests
 
 ```bash
-cd backend && python -m pytest tests -q   # 4 passed (Phase 1)
+cd backend && python -m pytest tests -q   # 54 passed
+cd frontend && npm run build
+python scripts/security_check.py           # PASSED
+python scripts/deploy_check.py --mode production --env-file .env
 ```
 
 ## Still required before any real publishing (external config, not code)
 
-1. Meta app + Instagram Graph API permissions, Business/Creator accounts
-   connected to a Facebook Page, and OAuth redirect URIs — Phase 3.
-2. Google Cloud project + Drive API OAuth consent — Phase 2.
-3. A stable public HTTPS `PUBLIC_MEDIA_BASE_URL` for Meta to fetch
-   videos (Cloudflare Tunnel is for local testing only) — Phase 6/9.
-4. `TOKEN_ENCRYPTION_KEY` + `SECRET_KEY` set in production; without the
+1. GitHub auth (PAT) to push this repo -- all commits are local so far.
+2. Meta app + Instagram Graph API permissions, Business/Creator accounts
+   connected to a Facebook Page, and OAuth redirect URIs.
+3. Google Cloud project + Drive API OAuth consent.
+4. A stable public HTTPS `PUBLIC_MEDIA_BASE_URL` for Meta to fetch
+   videos (Cloudflare Tunnel is for local testing only).
+5. `TOKEN_ENCRYPTION_KEY` + `SECRET_KEY` set in production; without the
    former, tokens are encrypted with an ephemeral key and do not
    survive a restart (logged on startup).
+6. The manual production checklist in `docs/TESTING.md` (one real
+   account end-to-end, then scale 5 -> 10 -> 20 -> 50).
 
 ## Zero-budget note
 
-Everything in Phase 1 is free/open-source (Next.js, FastAPI, SQLite,
-APScheduler in later phases). No paid AI API is used. Free hosting
-tiers are **not** assumed to be always-on — see `docs/DEPLOYMENT.md`.
+Everything is free/open-source (Next.js, FastAPI, SQLite/Postgres,
+APScheduler). No paid AI API is used. Free hosting tiers are **not**
+assumed to be always-on -- see `docs/DEPLOYMENT.md`.
