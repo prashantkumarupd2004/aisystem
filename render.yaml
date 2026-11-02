@@ -1,11 +1,19 @@
-# Render blueprint (Phase 9). Frontend goes on Vercel (see
-# docs/DEPLOYMENT.md); this file covers backend + worker + Postgres.
+# Render blueprint (Phase 9, fixed 2026-11-02).
+# Frontend goes on Vercel (see docs/DEPLOYMENT.md); this file
+# covers the backend API + Postgres.
+#
+# IMPORTANT: there is deliberately NO separate worker service.
+# The worker downloads a video to media_temp_dir and the API
+# serves it to Meta from /media -- separate services have
+# separate filesystems, so Meta would get a 404. Instead, ONE
+# web service runs both processes via backend/start_all.sh,
+# sharing the same disk. See that script for the explanation.
 services:
   - type: web
     name: aisystem-api
     env: python
     buildCommand: pip install -r backend/requirements.txt
-    startCommand: PYTHONPATH=backend uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    startCommand: bash backend/start_all.sh
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.0
@@ -23,23 +31,9 @@ services:
         sync: false
       - key: PUBLIC_MEDIA_BASE_URL
         sync: false
-      - key: ENVIRONMENT
-        value: production
-  - type: worker
-    name: aisystem-worker
-    env: python
-    buildCommand: pip install -r backend/requirements.txt
-    startCommand: PYTHONPATH=backend python -m app.worker
-    envVars:
-      - key: DATABASE_URL
-        fromDatabase:
-          name: aisystem-db
-          property: connectionString
-      - key: TOKEN_ENCRYPTION_KEY
+      - key: CORS_ORIGINS
         sync: false
-      - key: SECRET_KEY
-        generateValue: true
-      - key: PUBLIC_MEDIA_BASE_URL
+      - key: FRONTEND_URL
         sync: false
       - key: ENVIRONMENT
         value: production

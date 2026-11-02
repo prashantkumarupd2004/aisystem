@@ -55,12 +55,17 @@ node:20-alpine images.
   `NEXT_PUBLIC_API_URL` to your public backend URL, deploy.
   (This variable is baked in at build time, so changing the
   backend URL requires a rebuild.)
-- **Backend + worker + Postgres on Railway or Render:** use
-  `Procfile` (web + worker processes) or `render.yaml` (web +
-  worker + database blueprint). Set DATABASE_URL from the
-  managed Postgres, TOKEN_ENCRYPTION_KEY, SECRET_KEY, admin
-  credentials, and PUBLIC_MEDIA_BASE_URL (stable HTTPS, ending
-  in /media).
+- **Backend + Postgres on Railway or Render:** use `render.yaml`
+  (ONE web service + database blueprint). Do NOT run the API and
+  the worker as two separate services on these hosts: they have
+  separate filesystems, and the worker's downloaded video would
+  not be visible to the API's /media endpoint, so Meta would get
+  a 404. `backend/start_all.sh` runs uvicorn + worker in the same
+  service, sharing one disk. Set DATABASE_URL from the managed
+  Postgres, TOKEN_ENCRYPTION_KEY, SECRET_KEY, admin credentials,
+  CORS_ORIGINS / FRONTEND_URL (your Vercel frontend URL), and
+  PUBLIC_MEDIA_BASE_URL (stable HTTPS, ending in /media, set to
+  the deployed API URL once it is known, then redeploy).
 - **Database:** switching SQLite -> Postgres is a config change
   only (DATABASE_URL); models use no SQLite-specific features.
   Fresh cloud DBs are created by `create_all` on first start.
