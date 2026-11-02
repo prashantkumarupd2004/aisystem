@@ -14,7 +14,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .config import cors_origin_list, settings
 from .database import Base, SessionLocal, engine
 from .models import User  # noqa: F401  (register all models)
-from .routers import accounts, auth, dashboard, drive, mappings
+from .routers import accounts, auth, dashboard, drive, instagram, mappings
 from .security import hash_password
 
 log = logging.getLogger(__name__)
@@ -54,6 +54,7 @@ app.include_router(dashboard.router)
 app.include_router(accounts.router)
 app.include_router(mappings.router)
 app.include_router(drive.router)
+app.include_router(instagram.router)
 
 
 @app.get("/api/health")

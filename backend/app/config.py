@@ -42,6 +42,17 @@ class Settings(BaseSettings):
     google_client_secret: str | None = None
     google_redirect_uri: str = "http://localhost:8000/api/drive/oauth/callback"
     google_drive_scopes: str = "https://www.googleapis.com/auth/drive.readonly"
+    # Meta / Instagram Graph API (Phase 3). See docs/META_SETUP.md.
+    # Only Business/Creator accounts linked to a Facebook Page are
+    # eligible; personal Instagram accounts are skipped, not created.
+    meta_app_id: str | None = None
+    meta_app_secret: str | None = None
+    meta_redirect_uri: str = "http://localhost:8000/api/instagram/oauth/callback"
+    meta_graph_version: str = "v21.0"
+    meta_scopes: str = (
+        "instagram_basic,instagram_content_publish,"
+        "pages_show_list,pages_read_engagement"
+    )
 
 
 settings = Settings()

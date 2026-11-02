@@ -4,16 +4,17 @@ Centralised web platform to manage ~50 Instagram Professional accounts
 from one dashboard, with one central Google Drive library, strict
 account→folder isolation, scheduling and official Meta API publishing.
 
-> **Phase 2 status: Drive OAuth + folder sync, working.** Auth, database
-> schema, dashboard stats (real DB counts), account CRUD and validated
-> account→folder mapping are implemented and tested (Phase 1), plus
-> real Google Drive OAuth (signed state, encrypted refresh token,
-> automatic refresh), paginated folder discovery synced to the DB by
-> permanent Drive ID, account-folder candidate listing, and Drive
-> changes polling (Phase 2). Instagram OAuth (Phase 3), video
-> detection (Phase 4), scheduling/worker (Phase 5) and Meta publishing
-> (Phase 6) are **not present yet — and are not faked**. There is no
-> mock publishing mode.
+> **Phase 3 status: Instagram OAuth + multi-account management, working.**
+> Phases 1-2 are done, plus real Meta Facebook Login OAuth (signed
+> state, short→long-lived token exchange, Page access tokens encrypted
+> at rest), Page→Instagram Business/Creator discovery with ineligible
+> accounts skipped, upsert by Instagram user ID, per-account live
+> health checks (190 → TOKEN_EXPIRED, permission errors →
+> PERMISSION_REVOKED, unconfirmable cases stay UNKNOWN — API access is
+> never claimed as proof against suspension), and disconnect/reconnect
+> via OAuth only. Video detection (Phase 4), scheduling/worker
+> (Phase 5) and Meta publishing (Phase 6) are **not present yet — and
+> are not faked**. There is no mock publishing mode.
 
 ## Non-negotiable rule
 
