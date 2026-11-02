@@ -17,7 +17,7 @@ import { api, type AccountSummary, type DashboardStats } from "@/lib/api";
 const NAV: [string, string][] = [
   ["Dashboard", "/"], ["Instagram Accounts", "/accounts"],
   ["Google Drive Integration", "/drive"], ["Account-Folder Mapping", "/mappings"],
-  ["Video Library", "#"], ["Bulk Upload / Video Detection", "#"],
+  ["Video Library", "/videos"], ["Bulk Upload / Video Detection", "/videos"],
   ["Reel Scheduler", "#"], ["Publishing Calendar", "#"],
   ["Publishing History", "#"], ["Failed Jobs", "#"], ["Account Health", "#"],
   ["Daily Reports", "#"], ["Notifications", "#"], ["Settings", "#"],

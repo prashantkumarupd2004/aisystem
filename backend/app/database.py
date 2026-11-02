@@ -32,3 +32,22 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def ensure_extra_columns() -> None:
+    """Lightweight upgrade for dev databases created before a column
+    was added (Phase 4 adds thumbnail_url / validation_notes).
+    Fresh databases already have these columns via create_all, so this
+    is a no-op for them. Production should use Alembic in Phase 10."""
+    from sqlalchemy import inspect, text
+
+    with engine.begin() as conn:
+        try:
+            cols = [c["name"] for c in inspect(conn).get_columns("drive_videos")]
+        except Exception:
+            return
+        for col in ("thumbnail_url", "validation_notes"):
+            if col not in cols:
+                conn.execute(
+                    text(f"ALTER TABLE drive_videos ADD COLUMN {col} TEXT")
+                )

@@ -147,6 +147,11 @@ class DriveVideo(Base, TimestampMixin):
     content_hash = Column(String(128), nullable=True)
     caption = Column(Text, nullable=True)
     hashtags = Column(Text, nullable=True)
+    # Drive-generated thumbnail link (Phase 4). Full video preview
+    # playback needs the authenticated media endpoint in Phase 6/9;
+    # the thumbnail is the preview shown in the library until then.
+    thumbnail_url = Column(Text, nullable=True)
+    validation_notes = Column(Text, nullable=True)
     status = Column(String(32), default="NEW", nullable=False)
     # NEW | READY | SCHEDULED | PROCESSING | PUBLISHED | FAILED | NEEDS_REVIEW
     __table_args__ = (

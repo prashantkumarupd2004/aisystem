@@ -4,17 +4,18 @@ Centralised web platform to manage ~50 Instagram Professional accounts
 from one dashboard, with one central Google Drive library, strict
 account→folder isolation, scheduling and official Meta API publishing.
 
-> **Phase 3 status: Instagram OAuth + multi-account management, working.**
-> Phases 1-2 are done, plus real Meta Facebook Login OAuth (signed
-> state, short→long-lived token exchange, Page access tokens encrypted
-> at rest), Page→Instagram Business/Creator discovery with ineligible
-> accounts skipped, upsert by Instagram user ID, per-account live
-> health checks (190 → TOKEN_EXPIRED, permission errors →
-> PERMISSION_REVOKED, unconfirmable cases stay UNKNOWN — API access is
-> never claimed as proof against suspension), and disconnect/reconnect
-> via OAuth only. Video detection (Phase 4), scheduling/worker
-> (Phase 5) and Meta publishing (Phase 6) are **not present yet — and
-> are not faked**. There is no mock publishing mode.
+> **Phase 4 status: Video detection + library, working.** Phases 1-3
+> are done, plus real Drive folder scanning per mapped account:
+> MP4/MOV validation (size ≤250 MB, duration 3–900 s, sane aspect
+> ratio; missing duration stays NEW, never READY), dedup by Drive
+> file ID and md5 hash, rename updates, vanished files marked
+> NEEDS_REVIEW (never deleted), cross-account files never reassigned,
+> caption/hashtag editing, and Drive thumbnails as previews.
+> Codec is NOT claimed as validated from Drive metadata (Drive does
+> not expose it) — it is validated after download in Phase 6.
+> Full authenticated video playback needs the Phase 6 media endpoint
+> and is not faked here. Scheduling/worker (Phase 5) and Meta
+> publishing (Phase 6) are **not present yet — and are not faked**.
 
 ## Non-negotiable rule
 

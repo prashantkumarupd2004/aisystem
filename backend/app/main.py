@@ -12,9 +12,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import cors_origin_list, settings
-from .database import Base, SessionLocal, engine
+from .database import Base, SessionLocal, engine, ensure_extra_columns
 from .models import User  # noqa: F401  (register all models)
-from .routers import accounts, auth, dashboard, drive, instagram, mappings
+from .routers import accounts, auth, dashboard, drive, instagram, mappings, videos
 from .security import hash_password
 
 log = logging.getLogger(__name__)
@@ -22,6 +22,7 @@ log = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    ensure_extra_columns()
     # Bootstrap the first admin ONLY from env, never a hard-coded password.
     if settings.admin_email and settings.admin_password:
         db = SessionLocal()
@@ -55,6 +56,7 @@ app.include_router(accounts.router)
 app.include_router(mappings.router)
 app.include_router(drive.router)
 app.include_router(instagram.router)
+app.include_router(videos.router)
 
 
 @app.get("/api/health")
