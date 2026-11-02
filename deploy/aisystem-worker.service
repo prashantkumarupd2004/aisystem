@@ -1,0 +1,19 @@
+# systemd unit for the publishing worker on a Linux VPS (Phase 9).
+# The worker MUST run on an always-on host: if it sleeps, scheduled
+# publishes are missed, not queued forever (they run late only if the
+# host comes back before their slot is long past; see scheduler).
+# Install alongside aisystem-backend.service.
+[Unit]
+Description=Instagram Reels Automation Worker
+After=network.target aisystem-backend.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/aisystem/backend
+EnvironmentFile=/opt/aisystem/.env
+ExecStart=/opt/aisystem/.venv/bin/python -m app.worker
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

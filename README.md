@@ -4,17 +4,18 @@ Centralised web platform to manage ~50 Instagram Professional accounts
 from one dashboard, with one central Google Drive library, strict
 account→folder isolation, scheduling and official Meta API publishing.
 
-> **Phase 8 status: Monitoring + reports + alerts, working.**
-> Phases 1-7 are done, plus a health dashboard (connected / API
-> accessible / disconnected / expired / revoked / needing
-> reconnection / needing manual review, per-account last API check
-> and last successful publishing time -- API accessible is never
-> claimed as "not suspended"), daily/weekly/monthly range reports
-> with per-account breakdown, published history with exact time
-> and Instagram Media ID, failed history with retry history, CSV
-> export, and optional email/Telegram alerts that honestly report
-> "not configured" when unset. See docs/MONITORING_REPORTS.md.
-> Live publishing still needs the external Meta/Drive/HTTPS setup
+> **Phase 9 status: Local + hybrid cloud deployment, ready.**
+> Phases 1-8 are done, plus a full Docker Compose stack (Postgres +
+> API + separate worker + frontend, shared media volume), backend
+> Dockerfile with ffmpeg for the codec check, frontend Dockerfile
+> with reproducible `npm ci` and a build-time API URL, Procfile and
+> render.yaml for Railway/Render, systemd units for a Linux VPS,
+> a production env template, and `scripts/deploy_check.py` which
+> blocks deploys with a missing/invalid encryption key, default
+> secret, non-Postgres DB, or non-HTTPS media URL. Docker is not
+> installed on this dev VM, so images were validated by config
+> checks, not a local build -- see docs/DEPLOYMENT.md. Live
+> publishing still needs the external Meta/Drive/HTTPS setup
 > from Phase 6.
 
 ## Non-negotiable rule

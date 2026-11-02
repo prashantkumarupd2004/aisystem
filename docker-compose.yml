@@ -1,20 +1,77 @@
+# Full stack: PostgreSQL + backend API + publishing worker + frontend.
+# Phase 9 upgrade of the Phase 1 scaffold (which had backend+frontend
+# only, SQLite, and a commented-out Postgres).
+#
+# Usage:
+#   cp .env.production.example .env   # fill in real secrets
+#   docker compose up --build
+# Backend: http://localhost:8000, frontend: http://localhost:3000.
+#
+# Notes:
+# - backend and worker share the `media_temp` volume: the worker
+#   downloads a video and the API serves it to Meta from the same
+#   directory (see settings.media_temp_dir, default /app/data/media
+#   in containers via MEDIA_TEMP_DIR below).
+# - The worker is a SEPARATE process/service. Do not run the API
+#   with ENABLE_SCHEDULER=true in this stack, or two workers race
+#   (claim locking prevents duplicate publishes, but it is wasteful).
+# - For local SQLite-only dev, set DATABASE_URL in .env to a sqlite
+#   path and stop the db service; Postgres is the recommended path.
 services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-aisystem}
+      POSTGRES_USER: ${POSTGRES_USER:-aisystem}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-aisystem}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   backend:
     build: ./backend
-    ports: ["8000:8000"]
+    ports:
+      - "8000:8000"
     env_file: .env
-    volumes: ["./backend/data:/app/data"]
     environment:
-      DATABASE_URL: sqlite:///./data/app.db
+      DATABASE_URL: ${DATABASE_URL:-postgresql://aisystem:change-me@db:5432/aisystem}
+      MEDIA_TEMP_DIR: /app/data/media
+      ENABLE_SCHEDULER: "false"
+    volumes:
+      - media_temp:/app/data/media
+    depends_on:
+      db:
+        condition: service_healthy
+
+  worker:
+    build: ./backend
+    command: ["python", "-m", "app.worker"]
+    env_file: .env
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://aisystem:change-me@db:5432/aisystem}
+      MEDIA_TEMP_DIR: /app/data/media
+    volumes:
+      - media_temp:/app/data/media
+    depends_on:
+      db:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+
   frontend:
-    build: ./frontend
-    ports: ["3000:3000"]
-    environment:
-      NEXT_PUBLIC_API_URL: http://localhost:8000
-  # Optional PostgreSQL for cloud mode (uncomment + set DATABASE_URL):
-  # db:
-  #   image: postgres:16
-  #   environment: [POSTGRES_DB=aisystem, POSTGRES_USER=aisystem, POSTGRES_PASSWORD=change-me]
-  #   volumes: ["pgdata:/var/lib/postgresql/data"]
-# volumes:
-#   pgdata:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
+  media_temp:
